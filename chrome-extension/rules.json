@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Referer", "operation": "set", "value": "https://place.map.kakao.com/" },
+        { "header": "pf", "operation": "set", "value": "PC" },
+        { "header": "appversion", "operation": "set", "value": "6.6.0" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "place-api.map.kakao.com",
+      "resourceTypes": ["xmlhttprequest"]
+    }
+  }
+]

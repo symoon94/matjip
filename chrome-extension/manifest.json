@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "맛집 어시스턴트",
+  "version": "0.2.0",
+  "description": "카카오맵 가짜 후기 탐지 & 맛집 랭킹",
+  "permissions": ["storage", "declarativeNetRequest"],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "headers",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "host_permissions": [
+    "https://dapi.kakao.com/*",
+    "https://place-api.map.kakao.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://map.kakao.com/*",
+        "https://place.map.kakao.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://map.kakao.com/*"],
+      "js": ["map-bridge.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
