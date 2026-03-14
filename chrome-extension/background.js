@@ -1,5 +1,6 @@
 // --- API URLs ---
 const SEARCH_URL = "https://dapi.kakao.com/v2/local/search/keyword.json";
+const ADDRESS_URL = "https://dapi.kakao.com/v2/local/search/address.json";
 const CATEGORY_SEARCH_URL = "https://dapi.kakao.com/v2/local/search/category.json";
 const PANEL3_URL = "https://place-api.map.kakao.com/places/panel3/";
 const REVIEWS_URL =
@@ -76,6 +77,30 @@ async function searchPlaces(query, apiKey, maxPages = 3) {
 }
 
 // --- 장소 검색 (카테고리 제한 없음) ---
+
+async function searchAddress(query, apiKey) {
+  const params = new URLSearchParams({ query, size: "5" });
+  const resp = await fetch(`${ADDRESS_URL}?${params}`, {
+    headers: { Authorization: `KakaoAK ${apiKey}` },
+  });
+  if (!resp.ok) return [];
+  const data = await resp.json();
+  return (data.documents || []).map((d) => {
+    const addr = d.road_address || d.address;
+    return {
+      id: "",
+      name: d.address_name,
+      category: "주소",
+      categoryGroupCode: "",
+      address: d.address_name,
+      roadAddress: d.road_address ? d.road_address.address_name : "",
+      phone: "",
+      url: "",
+      x: parseFloat(addr.x),
+      y: parseFloat(addr.y),
+    };
+  });
+}
 
 async function searchPlacesOpen(query, apiKey, maxPages = 3) {
   const places = [];
@@ -640,7 +665,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return;
       }
       searchPlacesOpen(msg.query, apiKey, 1)
-        .then((places) => sendResponse({ mode: "select", places }))
+        .then(async (places) => {
+          if (places.length === 0) {
+            places = await searchAddress(msg.query, apiKey);
+          }
+          sendResponse({ mode: "select", places });
+        })
         .catch((err) => sendResponse({ error: err.message }));
     });
     return true;
