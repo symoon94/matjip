@@ -320,22 +320,23 @@
   background: #e67e22;
 }
 
-/* 즐겨찾기 마커 — 눈에 띄게 */
+/* 즐겨찾기 마커 — 일반 색상 + 우상단 ⭐ 뱃지 */
 .matjip-map-marker.fav {
-  border: 3px solid #f39c12;
-  background: #fff8e1;
-  box-shadow: 0 2px 12px rgba(243, 156, 18, 0.4);
+  position: relative;
 }
-.matjip-map-marker.fav .rank {
+.matjip-map-marker.fav .fav-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
   background: #f39c12;
-  font-size: 10px;
-  width: 26px;
-  height: 26px;
-}
-.matjip-map-marker.fav .name {
-  color: #e67e22;
-  font-weight: 700;
-}
-.matjip-map-marker.fav:hover {
-  box-shadow: 0 4px 20px rgba(243, 156, 18, 0.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  border: 1.5px solid #fff;
 }

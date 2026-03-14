@@ -151,8 +151,8 @@
         else if (item.suspicion >= 50) el.classList.add("danger");
         else if (item.suspicion > 0) el.classList.add("warning");
         el.innerHTML = isFav
-          ? '<span class="rank">' +
-            (item.favRank || "\u2B50") +
+          ? '<span class="fav-badge">\u2B50</span><span class="rank">' +
+            (item.favRank || "") +
             '</span><span class="name">' +
             item.name.replace(/</g, "&lt;") +
             "</span>"
