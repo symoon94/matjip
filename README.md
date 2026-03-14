@@ -6,15 +6,15 @@ Python CLI와 Chrome 확장 프로그램 두 가지 인터페이스를 제공합
 
 ## Screenshots
 
-### Chrome 확장 프로그램 - 카카오맵 연동
+### Chrome 확장 프로그램 - 주변 맛집 검색
 
-카카오맵 위에 플로팅 패널로 검색 결과를 표시하고, 지도에 번호 마커를 표시합니다.
+"국기원" 검색 후 주변 맛집 20개 + 즐겨찾기(⭐) 46개를 지도 마커와 패널에 표시합니다. 의심도별 색상(초록/노랑/빨강)으로 구분됩니다.
 
 ![Chrome Extension - Map View](docs/images/chrome-extension-map.png)
 
-### 가짜 리뷰 탐지 결과
+### 가짜 리뷰 탐지 배지
 
-의심도가 높은 식당(90%)은 구체적인 탐지 근거와 함께 표시됩니다.
+개별 식당 페이지에서 의심도 85%와 함께 구체적인 탐지 근거(별점평균 5.0 리뷰어 집중, 날짜 집중, 후기 알바 언급)를 자동 표시합니다.
 
 ![Chrome Extension - Detection Panel](docs/images/chrome-extension-panel.png)
 
