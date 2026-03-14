@@ -3,7 +3,7 @@
   "name": "맛집 어시스턴트",
   "version": "0.2.0",
   "description": "카카오맵 가짜 후기 탐지 & 맛집 랭킹",
-  "permissions": ["storage", "declarativeNetRequest"],
+  "permissions": ["storage", "unlimitedStorage", "declarativeNetRequest"],
   "declarative_net_request": {
     "rule_resources": [
       {

@@ -196,22 +196,97 @@ def fav_sync() -> None:
 
 
 @fav_app.command("list")
-def fav_list() -> None:
-    """즐겨찾기 목록을 표시합니다."""
+def fav_list(
+    search: Optional[str] = typer.Option(None, "--search", "-s", help="이름/카테고리/주소/폴더명으로 검색"),
+    top: int = typer.Option(50, "--top", "-n", help="표시할 최대 수"),
+) -> None:
+    """즐겨찾기 목록을 표시합니다. 모든 폴더(구독 포함)의 합집합."""
+    from restaurant_assistant.config import load_folder_names
+
     favorites = list_favorites()
     if not favorites:
         console.print("[dim]즐겨찾기가 비어 있습니다.[/dim]")
         return
 
-    table = Table(title="⭐ 즐겨찾기")
-    table.add_column("ID", style="dim")
-    table.add_column("이름", style="bold")
-    table.add_column("카테고리")
+    folder_names = load_folder_names()
 
+    # 폴더명 매핑
     for f in favorites:
-        table.add_row(f["id"], f["name"], f.get("category", ""))
+        f["_group_name"] = folder_names.get(f.get("group", ""), "")
 
+    # 검색 필터
+    if search:
+        keyword = search.lower()
+        ko_en = {
+            "강남": "gangnam", "서초": "seocho", "송파": "songpa", "마포": "mapo",
+            "종로": "jongno", "용산": "yongsan", "성동": "seongdong", "광진": "gwangjin",
+            "동대문": "dongdaemun", "중랑": "jungnang", "성북": "seongbuk", "강북": "gangbuk",
+            "도봉": "dobong", "노원": "nowon", "은평": "eunpyeong", "서대문": "seodaemun",
+            "중구": "jung-gu", "동작": "dongjak", "관악": "gwanak", "금천": "geumcheon",
+            "영등포": "yeongdeungpo", "구로": "guro", "양천": "yangcheon", "강서": "gangseo",
+            "강동": "gangdong", "서울": "seoul", "부산": "busan", "인천": "incheon",
+            "대구": "daegu", "대전": "daejeon", "광주": "gwangju", "수원": "suwon",
+            "용인": "yongin", "성남": "seongnam", "제주": "jeju",
+        }
+        extra = [en for ko, en in ko_en.items() if ko in keyword]
+
+        def _match(f: dict) -> bool:
+            fields = [
+                f.get("name", ""), f.get("category", ""),
+                f.get("address", ""), f.get("_group_name", ""), f.get("memo", ""),
+            ]
+            fields_lower = [v.lower() for v in fields]
+            return (
+                any(keyword in v for v in fields_lower)
+                or any(en in v for en in extra for v in fields_lower)
+            )
+
+        favorites = [f for f in favorites if _match(f)]
+
+    if not favorites:
+        console.print(f"[yellow]'{search}' 검색 결과가 없습니다.[/yellow]")
+        return
+
+    total = len(favorites)
+    shown = favorites[:top]
+
+    title = f"⭐ 즐겨찾기 ({total}개)"
+    if search:
+        title = f"⭐ 즐겨찾기 검색: '{search}' ({total}개)"
+
+    table = Table(title=title)
+    table.add_column("#", style="dim", width=4)
+    table.add_column("이름", style="bold cyan", max_width=20, no_wrap=True)
+    table.add_column("폴더", style="green", max_width=15, no_wrap=True)
+    table.add_column("주소", max_width=25, no_wrap=True)
+    table.add_column("메모", style="yellow", max_width=15, no_wrap=True)
+    table.add_column("ID", style="dim", no_wrap=True)
+
+    for i, f in enumerate(shown, 1):
+        # 주소 간결화: "서울 강남구 봉은사로 12 1층 (역삼동)" → "강남구 봉은사로 12"
+        addr = f.get("address", "")
+        # 괄호 부분 제거, 층수 제거
+        if "(" in addr:
+            addr = addr[:addr.index("(")].strip()
+        parts = addr.split()
+        if len(parts) > 1 and parts[0] in ("서울", "경기", "인천", "부산", "대구", "대전", "광주", "울산", "세종",
+                                             "강원특별자치도", "충북", "충남", "전북특별자치도", "전남", "경북", "경남", "제주특별자치도"):
+            addr = " ".join(parts[1:])
+
+        table.add_row(
+            str(i),
+            f["name"],
+            f["_group_name"],
+            addr,
+            f.get("memo", ""),
+            f["id"],
+        )
+
+    console.print()
     console.print(table)
+    if total > top:
+        console.print(f"[dim]... 외 {total - top}개 더 있음. --top {total} 으로 전체 보기[/dim]")
+    console.print()
 
 
 if __name__ == "__main__":

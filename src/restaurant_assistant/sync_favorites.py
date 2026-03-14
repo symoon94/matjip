@@ -63,7 +63,7 @@ async def sync_favorites_from_kakao() -> list[dict]:
             folder_names = await _fetch_folder_names_from_ui(page)
 
         # 2) 전체 즐겨찾기 항목 조회
-        favorites = await _fetch_favorites(page, folder_ids)
+        favorites = await _fetch_favorites(page, folder_ids, folder_names)
 
         await browser.close()
 
@@ -138,7 +138,7 @@ async def _fetch_folder_names_from_ui(page) -> dict[str, str]:
         return {}
 
 
-async def _fetch_favorites(page, folder_ids: list[int]) -> list[dict]:
+async def _fetch_favorites(page, folder_ids: list[int], folder_names: dict[str, str] | None = None) -> list[dict]:
     """list.json API로 즐겨찾기 항목을 가져온다."""
     # folderIds 쿼리 파라미터 구성
     params = "&".join(f"folderIds%5B%5D={fid}" for fid in folder_ids)
@@ -177,14 +177,25 @@ async def _fetch_favorites(page, folder_ids: list[int]) -> list[dict]:
             continue
 
         seen_ids.add(place_id)
-        favorites.append({
+
+        group_id = str(item.get("folderId", ""))
+        fav: dict = {
             "id": place_id,
             "name": name,
             "category": item.get("catename", ""),
-            "group": str(item.get("folderId", "")),
+            "group": group_id,
+            "group_name": (folder_names or {}).get(group_id, ""),
             "address": item.get("display2", ""),
             "memo": item.get("memo", ""),
-        })
+        }
+        # lon/lat = WGS84 좌표 (x/y는 카텍 좌표이므로 사용 안 함)
+        lon = item.get("lon")
+        lat = item.get("lat")
+        if lon and lat:
+            fav["x"] = float(lon)
+            fav["y"] = float(lat)
+
+        favorites.append(fav)
 
     return favorites
 

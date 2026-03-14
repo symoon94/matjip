@@ -66,9 +66,21 @@
   <input id="apiKey" type="text" placeholder="API 키 입력" />
   <button id="save">저장</button>
   <div id="status" class="status"></div>
+  <hr style="margin:14px 0;border:none;border-top:1px solid #eee" />
+  <button id="clearCache" style="background:#e74c3c">캐시 초기화</button>
+  <div id="cacheStatus" class="status"></div>
+
+  <hr style="margin:14px 0;border:none;border-top:1px solid #eee" />
+  <label>즐겨찾기 가져오기</label>
+  <input id="favFile" type="file" accept=".json" style="padding:4px;font-size:11px" />
+  <button id="clearFav" style="background:#e74c3c;margin-top:6px">즐겨찾기 초기화</button>
+  <div id="favStatus" class="status"></div>
+
   <div class="help">
     map.kakao.com에서 우측 상단 패널로 맛집을 검색하세요.
     API 키는 <a href="https://developers.kakao.com" target="_blank">developers.kakao.com</a>에서 발급받을 수 있습니다.
+    <br/><br/>
+    즐겨찾기: <code>~/.matjip/favorites.json</code> 파일을 위에서 불러오면 익스텐션에서도 즐겨찾기 검색이 가능합니다.
   </div>
 
   <script src="popup.js"></script>

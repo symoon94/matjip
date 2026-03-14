@@ -146,21 +146,45 @@
 
         const el = document.createElement("div");
         el.className = "matjip-map-marker";
-        if (item.suspicion >= 50) el.classList.add("danger");
+        const isFav = item.suspicion === -1;
+        if (isFav) el.classList.add("fav");
+        else if (item.suspicion >= 50) el.classList.add("danger");
         else if (item.suspicion > 0) el.classList.add("warning");
-        el.innerHTML =
-          '<span class="rank">' +
-          item.rank +
-          '</span><span class="name">' +
-          item.name.replace(/</g, "&lt;") +
-          "</span>";
+        el.innerHTML = isFav
+          ? '<span class="rank">\u2B50</span><span class="name">' +
+            item.name.replace(/</g, "&lt;") +
+            "</span>"
+          : '<span class="rank">' +
+            item.rank +
+            '</span><span class="name">' +
+            item.name.replace(/</g, "&lt;") +
+            "</span>";
 
+        // 마커 클릭 → 상세 페이지 열기
+        if (item.id) {
+          el.style.cursor = "pointer";
+          el.addEventListener("click", () => {
+            window.open("https://place.map.kakao.com/" + item.id, "_blank");
+          });
+        }
+
+        const baseZ = 1000 - item.rank;
         const overlay = new kakao.maps.CustomOverlay({
           position: pos,
           content: el,
           yAnchor: 1.5,
+          zIndex: baseZ,
           map: mapInstance,
         });
+
+        // hover → 최상위로 올림
+        el.addEventListener("mouseenter", () => {
+          overlay.setZIndex(9999);
+        });
+        el.addEventListener("mouseleave", () => {
+          overlay.setZIndex(baseZ);
+        });
+
         overlays.push(overlay);
       }
 
