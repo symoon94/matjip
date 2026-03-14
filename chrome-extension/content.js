@@ -1,16 +1,41 @@
 // map.kakao.com에 맛집 검색 패널을 플로팅으로 표시
 
 (function () {
-  // place.map.kakao.com → 개별 식당 분석 (기존)
+  // place.map.kakao.com → 개별 식당 분석 (SPA 내비게이션 대응)
   if (location.hostname === "place.map.kakao.com") {
-    const match = location.pathname.match(/^\/(\d+)/);
-    if (!match) return;
-    chrome.runtime.sendMessage(
-      { type: "analyzePlace", placeId: match[1] },
-      (r) => {
-        if (r && !r.error) injectPlaceBadge(r);
-      }
-    );
+    let currentPlaceId = null;
+
+    function analyzeCurrent() {
+      const m = location.pathname.match(/^\/(\d+)/);
+      if (!m || m[1] === currentPlaceId) return;
+      currentPlaceId = m[1];
+
+      // 기존 배지 제거
+      const old = document.getElementById("matjip-badge");
+      if (old) old.remove();
+
+      // 로딩 표시
+      const loading = document.createElement("div");
+      loading.id = "matjip-badge";
+      loading.className = "matjip-loading-badge";
+      loading.innerHTML = `<div class="matjip-header" style="background:#3498db">분석 중...</div>`;
+      document.body.appendChild(loading);
+
+      chrome.runtime.sendMessage(
+        { type: "analyzePlace", placeId: currentPlaceId },
+        (r) => {
+          const el = document.getElementById("matjip-badge");
+          if (el) el.remove();
+          if (r && !r.error) injectPlaceBadge(r);
+        }
+      );
+    }
+
+    // 초기 분석
+    analyzeCurrent();
+
+    // SPA 내비게이션 감지 (URL 변경 polling)
+    setInterval(analyzeCurrent, 1000);
     return;
   }
 
@@ -27,8 +52,11 @@
       </div>
       <div id="matjip-content">
         <div id="matjip-search-box">
-          <input id="matjip-query" type="text" placeholder="강남 한식, 홍대 이탈리안..." />
-          <button id="matjip-search-btn">검색</button>
+          <input id="matjip-query" type="text" placeholder="강남 한식, 마지모우..." />
+          <div id="matjip-btn-group">
+            <button id="matjip-search-btn">검색</button>
+            <button id="matjip-fav-btn">\u2B50</button>
+          </div>
         </div>
         <div id="matjip-status"></div>
         <div id="matjip-results"></div>
@@ -53,7 +81,10 @@
     const input = panel.querySelector("#matjip-query");
     const btn = panel.querySelector("#matjip-search-btn");
 
+    const favBtn = panel.querySelector("#matjip-fav-btn");
+
     btn.addEventListener("click", () => doSearch(input.value.trim()));
+    favBtn.addEventListener("click", () => doFavSearch(input.value.trim()));
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") doSearch(input.value.trim());
     });
@@ -71,13 +102,25 @@
     results.innerHTML = "";
     btn.disabled = true;
 
+    if (!chrome.runtime?.id) {
+      status.textContent = "확장이 업데이트되었습니다. 페이지를 새로고침해주세요.";
+      status.className = "matjip-error";
+      btn.disabled = false;
+      return;
+    }
+
     chrome.runtime.sendMessage(
-      { type: "search", query, topN: 10 },
+      { type: "search", query },
       (resp) => {
         btn.disabled = false;
 
         if (chrome.runtime.lastError || !resp) {
-          status.textContent = "오류가 발생했습니다";
+          const msg = chrome.runtime.lastError?.message || "";
+          if (msg.includes("invalidated")) {
+            status.textContent = "확장이 업데이트되었습니다. 페이지를 새로고침해주세요.";
+          } else {
+            status.textContent = "오류가 발생했습니다";
+          }
           status.className = "matjip-error";
           return;
         }
@@ -93,9 +136,15 @@
           return;
         }
 
-        status.textContent = `${resp.total}개 장소 중 상위 ${resp.results.length}개`;
+        if (!resp.places || resp.places.length === 0) {
+          status.textContent = "검색 결과가 없습니다";
+          status.className = "matjip-error";
+          return;
+        }
+
+        status.textContent = `${resp.places.length}개 장소. 선택하면 주변 맛집+즐겨찾기를 보여줍니다.`;
         status.className = "";
-        renderResults(resp.results);
+        showSelection(resp.places);
       }
     );
   }
@@ -119,10 +168,14 @@
         ? r.place.category.split(" > ").pop()
         : r.place.category;
 
+      const distLabel = r.distance ? `<span class="matjip-distance">${r.distance}m</span>` : "";
+
       row.innerHTML = `
         <div class="matjip-row-header">
           <span class="matjip-rank">${i + 1}</span>
+          ${r.isFavorite ? '<span class="matjip-fav-mark">\u2B50</span>' : ""}
           <span class="matjip-name">${esc(r.place.name)}</span>
+          ${distLabel}
           <span class="matjip-score">${r.score.toFixed(1)}</span>
         </div>
         <div class="matjip-row-details">
@@ -161,6 +214,7 @@
     // 지도에 마커 표시 (via map-bridge)
     const markerItems = items.map((r, i) => ({
       rank: i + 1,
+      id: r.place.id,
       lat: r.place.y,
       lng: r.place.x,
       name: r.place.name,
@@ -172,7 +226,267 @@
     );
   }
 
+  // --- 장소 선택 UI ---
+
+  function showSelection(places) {
+    const container = document.getElementById("matjip-results");
+    container.innerHTML = "";
+
+    for (const p of places) {
+      const row = document.createElement("div");
+      row.className = "matjip-row matjip-disambig-row";
+
+      const cat = p.category
+        ? p.category.includes(" > ") ? p.category.split(" > ").pop() : p.category
+        : "";
+
+      row.innerHTML = `
+        <div class="matjip-row-header">
+          <span class="matjip-disambig-icon">\u{1F4CD}</span>
+          <span class="matjip-name">${esc(p.name)}</span>
+        </div>
+        <div class="matjip-row-details">
+          ${cat ? `<span class="matjip-cat">${esc(cat)}</span>` : ""}
+          <span>${esc(p.address)}</span>
+        </div>
+      `;
+
+      row.addEventListener("click", () => {
+        const status = document.getElementById("matjip-status");
+        status.textContent = `\u{1F4CD} ${p.name} 주변 검색 중...`;
+        status.className = "matjip-loading";
+        container.innerHTML = "";
+
+        chrome.runtime.sendMessage(
+          { type: "nearbySearch", x: p.x, y: p.y, radius: 500, topN: 20 },
+          (resp) => {
+            if (chrome.runtime.lastError || !resp) {
+              status.textContent = "오류가 발생했습니다";
+              status.className = "matjip-error";
+              return;
+            }
+            if (resp.error) {
+              status.textContent = resp.error;
+              status.className = "matjip-error";
+              return;
+            }
+
+            const favCount = (resp.nearbyFavorites || []).length;
+            const favText = favCount > 0 ? ` + \u2B50${favCount}` : "";
+            status.textContent = `\u{1F4CD} ${p.name} 주변 맛집 ${resp.results.length}개${favText}`;
+            status.className = "";
+
+            renderResults(resp.results);
+
+            // 맛집 결과에 없는 주변 즐겨찾기 표시
+            if (resp.nearbyFavorites && resp.nearbyFavorites.length > 0) {
+              renderNearbyFavSection(resp.nearbyFavorites);
+            }
+
+            // 즐겨찾기 마커도 포함
+            const allMarkers = resp.results.map((r, i) => ({
+              rank: i + 1,
+              id: r.place.id,
+              lat: r.place.y,
+              lng: r.place.x,
+              name: r.place.name,
+              suspicion: r.suspicionScore,
+            }));
+            for (const f of resp.nearbyFavorites || []) {
+              allMarkers.push({
+                rank: allMarkers.length + 1,
+                id: f.id,
+                lat: f.y,
+                lng: f.x,
+                name: f.name,
+                suspicion: -1,
+              });
+            }
+            window.postMessage(
+              { source: "matjip", action: "setMarkers", items: allMarkers },
+              "*"
+            );
+
+            // 지도 이동
+            window.postMessage(
+              { source: "matjip", action: "panTo", lat: p.y, lng: p.x },
+              "*"
+            );
+          }
+        );
+      });
+
+      container.appendChild(row);
+    }
+  }
+
+  // --- 주변 즐겨찾기 섹션 ---
+
+  function renderNearbyFavSection(items) {
+    const container = document.getElementById("matjip-results");
+
+    const header = document.createElement("div");
+    header.style.cssText = "padding:8px 12px;font-size:12px;color:#e67e22;font-weight:700;border-top:2px solid #e67e22;margin-top:4px;";
+    header.textContent = `\u2B50 주변 즐겨찾기 (${items.length}개)`;
+    container.appendChild(header);
+
+    for (const f of items) {
+      const row = document.createElement("div");
+      row.className = "matjip-row";
+
+      let addr = f.address || "";
+      if (addr.includes("(")) addr = addr.substring(0, addr.indexOf("(")).trim();
+      const addrParts = addr.split(" ");
+      if (addrParts.length > 1 && addrParts[0].length >= 2) {
+        addr = addrParts.slice(1).join(" ");
+      }
+
+      row.innerHTML = `
+        <div class="matjip-row-header">
+          <span class="matjip-rank matjip-rank-fav">\u2B50</span>
+          <span class="matjip-name">${esc(f.name)}</span>
+          <span class="matjip-distance">${f.distance}m</span>
+        </div>
+        <div class="matjip-row-details">
+          <span>${esc(addr)}</span>
+        </div>
+        ${f.memo ? `<div class="matjip-row-details"><span class="matjip-memo">${esc(f.memo)}</span></div>` : ""}
+      `;
+
+      row.addEventListener("click", () => {
+        if (f.x && f.y) {
+          window.postMessage(
+            { source: "matjip", action: "panTo", lat: f.y, lng: f.x },
+            "*"
+          );
+        }
+        triggerKakaoSearch(f.name);
+        document.querySelectorAll(".matjip-row.selected").forEach((el) => el.classList.remove("selected"));
+        row.classList.add("selected");
+      });
+
+      row.title = f.address || "";
+      container.appendChild(row);
+    }
+  }
+
+  // --- 즐겨찾기 검색 ---
+
+  function doFavSearch(query) {
+    if (!query) return;
+
+    const status = document.getElementById("matjip-status");
+    const results = document.getElementById("matjip-results");
+    const favBtn = document.getElementById("matjip-fav-btn");
+
+    status.textContent = "즐겨찾기 검색 중...";
+    status.className = "matjip-loading";
+    results.innerHTML = "";
+    favBtn.disabled = true;
+
+    if (!chrome.runtime?.id) {
+      status.textContent = "확장이 업데이트되었습니다. 페이지를 새로고침해주세요.";
+      status.className = "matjip-error";
+      favBtn.disabled = false;
+      return;
+    }
+
+    chrome.runtime.sendMessage(
+      { type: "searchFavorites", query },
+      (resp) => {
+        favBtn.disabled = false;
+
+        if (chrome.runtime.lastError || !resp) {
+          status.textContent = "오류가 발생했습니다";
+          status.className = "matjip-error";
+          return;
+        }
+
+        if (resp.error) {
+          status.textContent = resp.error;
+          status.className = "matjip-error";
+          return;
+        }
+
+        if (resp.results.length === 0) {
+          status.textContent = `즐겨찾기에서 '${query}' 검색 결과 없음`;
+          status.className = "matjip-error";
+          return;
+        }
+
+        status.textContent = `\u2B50 즐겨찾기 ${resp.total}개 중 ${resp.results.length}개 표시`;
+        status.className = "";
+        renderFavResults(resp.results);
+      }
+    );
+  }
+
+  function renderFavResults(items) {
+    const container = document.getElementById("matjip-results");
+    container.innerHTML = "";
+
+    for (let i = 0; i < items.length; i++) {
+      const f = items[i];
+      const row = document.createElement("div");
+      row.className = "matjip-row";
+
+      // 주소 간결화
+      let addr = f.address || "";
+      if (addr.includes("(")) addr = addr.substring(0, addr.indexOf("(")).trim();
+      const addrParts = addr.split(" ");
+      if (addrParts.length > 1 && addrParts[0].length >= 2) {
+        addr = addrParts.slice(1).join(" ");
+      }
+
+      row.innerHTML = `
+        <div class="matjip-row-header">
+          <span class="matjip-rank matjip-rank-fav">\u2B50</span>
+          <span class="matjip-name">${esc(f.name)}</span>
+        </div>
+        <div class="matjip-row-details">
+          <span>${esc(addr)}</span>
+        </div>
+        ${f.memo ? `<div class="matjip-row-details"><span class="matjip-memo">${esc(f.memo)}</span></div>` : ""}
+      `;
+
+      row.addEventListener("click", () => {
+        if (f.x && f.y) {
+          window.postMessage(
+            { source: "matjip", action: "panTo", lat: f.y, lng: f.x },
+            "*"
+          );
+        }
+        triggerKakaoSearch(f.name);
+        document
+          .querySelectorAll(".matjip-row.selected")
+          .forEach((el) => el.classList.remove("selected"));
+        row.classList.add("selected");
+      });
+
+      row.title = f.address || "";
+      container.appendChild(row);
+    }
+
+    // 좌표가 있는 즐겨찾기를 지도에 마커로 표시
+    const withCoords = items.filter((f) => f.x && f.y);
+    if (withCoords.length > 0) {
+      const markerItems = withCoords.map((f, i) => ({
+        rank: i + 1,
+        id: f.id,
+        lat: f.y,
+        lng: f.x,
+        name: f.name,
+        suspicion: -1,
+      }));
+      window.postMessage(
+        { source: "matjip", action: "setMarkers", items: markerItems },
+        "*"
+      );
+    }
+  }
+
   // 진행 상황 수신
+  if (!chrome.runtime?.id) return;
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === "progress") {
       const status = document.getElementById("matjip-status");

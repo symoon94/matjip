@@ -52,6 +52,12 @@
   border-bottom: 1px solid #eee;
 }
 
+#matjip-btn-group {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 #matjip-query {
   flex: 1;
   padding: 8px 10px;
@@ -64,20 +70,32 @@
   border-color: #3498db;
 }
 
-#matjip-search-btn {
-  padding: 8px 14px;
-  background: #3498db;
+#matjip-search-btn,
+#matjip-fav-btn {
+  padding: 8px 10px;
   color: #fff;
   border: none;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+}
+#matjip-search-btn {
+  background: #3498db;
 }
 #matjip-search-btn:hover {
   background: #2980b9;
 }
-#matjip-search-btn:disabled {
+#matjip-fav-btn {
+  background: #e67e22;
+  padding: 8px 8px;
+}
+#matjip-fav-btn:hover {
+  background: #d35400;
+}
+#matjip-search-btn:disabled,
+#matjip-fav-btn:disabled {
   background: #bdc3c7;
   cursor: not-allowed;
 }
@@ -165,6 +183,37 @@
   font-weight: 600;
 }
 
+.matjip-distance {
+  font-weight: 700;
+  color: #27ae60;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.matjip-fav-mark {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.matjip-disambig-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.matjip-disambig-row {
+  border-left: 3px solid #3498db;
+}
+
+.matjip-rank-fav {
+  background: #e67e22;
+  font-size: 10px;
+}
+
+.matjip-memo {
+  color: #e67e22;
+  font-style: italic;
+}
+
 .matjip-row-flags {
   display: flex;
   flex-wrap: wrap;
@@ -231,11 +280,19 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   cursor: pointer;
   white-space: nowrap;
-  transition: transform 0.15s;
+  transition: all 0.2s;
+}
+.matjip-map-marker .name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #333;
+  font-weight: 500;
 }
 .matjip-map-marker:hover {
-  transform: scale(1.08);
-  z-index: 10;
+  transform: scale(1.15);
+  z-index: 9999 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 .matjip-map-marker.danger {
   border-color: #e74c3c;
@@ -247,8 +304,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #27ae60;
   color: #fff;
@@ -262,10 +319,23 @@
 .matjip-map-marker.warning .rank {
   background: #e67e22;
 }
-.matjip-map-marker .name {
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #333;
-  font-weight: 500;
+
+/* 즐겨찾기 마커 — 눈에 띄게 */
+.matjip-map-marker.fav {
+  border: 3px solid #f39c12;
+  background: #fff8e1;
+  box-shadow: 0 2px 12px rgba(243, 156, 18, 0.4);
+}
+.matjip-map-marker.fav .rank {
+  background: #f39c12;
+  font-size: 10px;
+  width: 26px;
+  height: 26px;
+}
+.matjip-map-marker.fav .name {
+  color: #e67e22;
+  font-weight: 700;
+}
+.matjip-map-marker.fav:hover {
+  box-shadow: 0 4px 20px rgba(243, 156, 18, 0.5);
 }

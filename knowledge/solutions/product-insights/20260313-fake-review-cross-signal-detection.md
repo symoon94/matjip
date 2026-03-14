@@ -59,4 +59,4 @@ evidence:
 - **변형:** window를 3~5일로 확장하면 recall이 올라가나 precision이 내려감. 플랫폼별 알바 업체 운영 패턴에 따라 조정
 
 ## Related
-관련 문서 없음.
+- [세글자 닉네임 연속 패턴 탐지](./20260314-fake-review-consecutive-three-char-pattern.md) — 빈도가 아닌 연속성으로 세글자 닉네임 가짜 리뷰를 탐지하는 방법. 교차 신호와 상호 보완적으로 작동
