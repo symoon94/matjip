@@ -292,16 +292,17 @@
               name: r.place.name,
               suspicion: r.suspicionScore,
             }));
-            for (const f of resp.nearbyFavorites || []) {
+            (resp.nearbyFavorites || []).forEach((f, i) => {
               allMarkers.push({
                 rank: allMarkers.length + 1,
+                favRank: i + 1,
                 id: f.id,
                 lat: f.y,
                 lng: f.x,
                 name: f.name,
                 suspicion: -1,
               });
-            }
+            });
             window.postMessage(
               { source: "matjip", action: "setMarkers", items: allMarkers },
               "*"
@@ -330,9 +331,10 @@
     header.textContent = `\u2B50 주변 즐겨찾기 (${items.length}개)`;
     container.appendChild(header);
 
-    for (const f of items) {
+    items.forEach((f, idx) => {
       const row = document.createElement("div");
       row.className = "matjip-row";
+      const favRank = idx + 1;
 
       let addr = f.address || "";
       if (addr.includes("(")) addr = addr.substring(0, addr.indexOf("(")).trim();
@@ -343,7 +345,8 @@
 
       row.innerHTML = `
         <div class="matjip-row-header">
-          <span class="matjip-rank matjip-rank-fav">\u2B50</span>
+          <span class="matjip-rank matjip-rank-fav">${favRank}</span>
+          <span class="matjip-fav-mark">\u2B50</span>
           <span class="matjip-name">${esc(f.name)}</span>
           <span class="matjip-distance">${f.distance}m</span>
         </div>
@@ -367,7 +370,7 @@
 
       row.title = f.address || "";
       container.appendChild(row);
-    }
+    });
   }
 
   // --- 즐겨찾기 검색 ---
